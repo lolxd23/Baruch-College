@@ -14,7 +14,7 @@ Using Python's built-in csv module, the program loads the CSV file, organizes en
 1. Make sure **`stock_data_july_to_september.csv`** is in the same folder as the script
 2. Run the Python script:
 ```bash
-python paven_oommen_assignment_2.py
+python hajara_muzammal_final.py
 ```
 
 Or in an IDE, simply run the file.
