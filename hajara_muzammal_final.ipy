@@ -1,0 +1,358 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "name": "hajara_muzammal_final.ipy",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/lolxd23/Baruch-College/blob/main/hajara_muzammal_final.ipy\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "GqfO5gm3fzQZ"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Hajara -- Muzammal -- 24758122"
+      ],
+      "metadata": {
+        "id": "B3aIe1AWf1FL"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import csv\n",
+        "from collections import defaultdict\n",
+        "from typing import List, Dict, Any, Tuple\n",
+        "import numpy as np"
+      ],
+      "metadata": {
+        "id": "bcFCQtYggxiC"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## 1. File I/O + Parsing"
+      ],
+      "metadata": {
+        "id": "LtHbaP29f8fz"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def read_ohlcv(path: str) -> list[dict]:\n",
+        "    \"\"\"\n",
+        "    Read CSV file of OHLCV stock data and parse into list of dictionaries.\n",
+        "    Uses only Python built-ins (csv module).\n",
+        "\n",
+        "    Args:\n",
+        "        path: filepath to CSV file\n",
+        "\n",
+        "    Returns:\n",
+        "        list of dicts with keys: date, symbol, open, high, low, close, volume\n",
+        "    \"\"\"\n",
+        "    rows: list[dict] = []\n",
+        "\n",
+        "    try:\n",
+        "        with open(path, newline=\"\", encoding=\"utf-8\") as f:\n",
+        "            reader = csv.DictReader(f)\n",
+        "            lower_map = {col.lower(): col for col in reader.fieldnames}\n",
+        "            required_cols = [\"date\", \"ticker\", \"open\", \"high\", \"low\", \"close\", \"volume\"]\n",
+        "            for col in required_cols:\n",
+        "                if col not in lower_map:\n",
+        "                    print(f\"ERROR: Missing required column: {col}\")\n",
+        "                    return rows\n",
+        "            for line_num, row in enumerate(reader, start=2):\n",
+        "                try:\n",
+        "                    parsed_row = {\n",
+        "                        \"date\":   row[lower_map[\"date\"]].strip(),\n",
+        "                        \"symbol\": row[lower_map[\"ticker\"]].strip(),\n",
+        "                        \"high\":   float(row[lower_map[\"high\"]]),\n",
+        "                        \"low\":    float(row[lower_map[\"low\"]]),\n",
+        "                        \"close\":  float(row[lower_map[\"close\"]]),\n",
+        "                        \"volume\": int(float(row[lower_map[\"volume\"]]))\n",
+        "                    }\n",
+        "\n",
+        "                    rows.append(parsed_row)\n",
+        "\n",
+        "                except Exception as e:\n",
+        "                    print(f\"Skipping malformed row {line_num}: {e}\")\n",
+        "    except FileNotFoundError:\n",
+        "        print(f\"File not found: {path}\")\n",
+        "    except Exception as e:\n",
+        "        print(f\"An error occurred while reading the file: {e}\")\n",
+        "\n",
+        "    return rows"
+      ],
+      "metadata": {
+        "id": "UJofwB_RgE-L"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## 2. Summary Function that Returns a Tuple"
+      ],
+      "metadata": {
+        "id": "E6Uw5JfSgFTe"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def stock_summary(rows_for_symbol) -> tuple:\n",
+        "    \"\"\"\n",
+        "    Compute summary statistics for a single stock.\n",
+        "\n",
+        "    Args:\n",
+        "        rows_for_symbol: list of parsed rows for a single stock\n",
+        "\n",
+        "    Returns:\n",
+        "        tuple: (symbol, highest_high, lowest_low)\n",
+        "    \"\"\"\n",
+        "    if not rows_for_symbol:\n",
+        "        raise ValueError(\"stock_summary received an empty list\")\n",
+        "    symbol = rows_for_symbol[0][\"symbol\"]\n",
+        "    highs = [row[\"high\"] for row in rows_for_symbol]\n",
+        "    lows = [row[\"low\"] for row in rows_for_symbol]\n",
+        "    highest_high = max(highs)\n",
+        "    lowest_low = min(lows)\n",
+        "    return (symbol, highest_high, lowest_low)"
+      ],
+      "metadata": {
+        "id": "Yv5fzAZsgIPB"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## 3. Technical Analysis Function"
+      ],
+      "metadata": {
+        "id": "cN3nCg23gIzQ"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def technical_analysis(closes: list[float]) -> dict:\n",
+        "    \"\"\"\n",
+        "    Perform technical analysis on closing prices using NumPy.\n",
+        "\n",
+        "    Args:\n",
+        "        closes: list of closing prices in chronological order\n",
+        "\n",
+        "    Returns a dict with keys:\n",
+        "      - 'sma_30': last 30-day simple moving average (float or None if not enough data)\n",
+        "      - 'ema_30': last 30-day exponential moving average (float or None if not enough data)\n",
+        "      - 'three_month_return': last daily return in decimal (close_t/close_{t-1}-1) or None\n",
+        "      - 'average_vol': sample std dev of daily returns over last 20 periods (or None if <2 returns)\n",
+        "    Must use NumPy for vectorized math.\n",
+        "    \"\"\"\n",
+        "\n",
+        "    results = {\n",
+        "        \"sma_30\": None,\n",
+        "        \"ema_30\": None,\n",
+        "        \"three_month_return\": None,\n",
+        "        \"average_vol\": None\n",
+        "    }\n",
+        "    if len(closes) == 0:\n",
+        "        return results\n",
+        "    prices = np.array(closes, dtype=float)\n",
+        "    n = len(prices)\n",
+        "    span = 30\n",
+        "    if n >= span:\n",
+        "        last_30 = prices[-span:]\n",
+        "        results[\"sma_30\"] = float(np.mean(last_30))\n",
+        "        alpha = 2 / (span + 1)\n",
+        "        ema = prices[0]\n",
+        "        for p in prices[1:]:\n",
+        "            ema = alpha * p + (1 - alpha) * ema\n",
+        "        results[\"ema_30\"] = float(ema)\n",
+        "    if n >= 2:\n",
+        "        results[\"three_month_return\"] = float(prices[-1] / prices[-2] - 1)\n",
+        "    if n >= 2:\n",
+        "        returns = prices[1:] / prices[:-1] - 1\n",
+        "        last20 = returns[-20:]\n",
+        "        if len(last20) >= 2:\n",
+        "            results[\"average_vol\"] = float(np.std(last20, ddof=1))\n",
+        "    return results"
+      ],
+      "metadata": {
+        "id": "N98kRV0TgMsH"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## 4. Main Program"
+      ],
+      "metadata": {
+        "id": "nye5WxCTgM8A"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def main(path):\n",
+        "    \"\"\"\n",
+        "    Main program to analyze stock data from CSV file.\n",
+        "\n",
+        "    Args:\n",
+        "        path: filepath to stock data CSV\n",
+        "\n",
+        "    Returns:\n",
+        "        dict: keyed by symbol containing highest_high, lowest_low, and tech analysis\n",
+        "    \"\"\"\n",
+        "    results = {}\n",
+        "    rows = read_ohlcv(path)\n",
+        "    if not rows:\n",
+        "        print(\"No data loaded. Check file path and format.\")\n",
+        "        return results\n",
+        "    grouped = defaultdict(list)\n",
+        "    for row in rows:\n",
+        "        grouped[row[\"symbol\"]].append(row)\n",
+        "    for symbol, rows_for_symbol in grouped.items():\n",
+        "        rows_for_symbol = sorted(rows_for_symbol, key=lambda r: r[\"date\"])\n",
+        "        symbol_name, highest, lowest = stock_summary(rows_for_symbol)\n",
+        "        closes = [r[\"close\"] for r in rows_for_symbol]\n",
+        "        tech = technical_analysis(closes)\n",
+        "        results[symbol] = {\n",
+        "            \"highest_high\": highest,\n",
+        "            \"lowest_low\": lowest,\n",
+        "            \"tech\": tech\n",
+        "        }\n",
+        "    return results"
+      ],
+      "metadata": {
+        "id": "A6roVA_Zg3iz"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "## Run"
+      ],
+      "metadata": {
+        "id": "5uJDKSjFg6Th"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "\n",
+        "results = main('stock_data_july_to_september.csv')\n",
+        "\n",
+        "import pprint\n",
+        "pprint.pprint(results)"
+      ],
+      "metadata": {
+        "id": "ZDHKjOSHg7Mx",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "6b3e9a34-cacd-4af2-e495-6407a346b179"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "{'AAPL': {'highest_high': 257.6000061035156,\n",
+            "          'lowest_low': 201.27158167093614,\n",
+            "          'tech': {'average_vol': 0.01822649503356168,\n",
+            "                   'ema_30': 240.11085018345705,\n",
+            "                   'sma_30': 238.4366658528646,\n",
+            "                   'three_month_return': 0.0007861188255666729}},\n",
+            " 'GOOG': {'highest_high': 256.70001220703125,\n",
+            "          'lowest_low': 173.72473469070374,\n",
+            "          'tech': {'average_vol': 0.023612161290069655,\n",
+            "                   'ema_30': 234.09938189379187,\n",
+            "                   'sma_30': 232.02714996337892,\n",
+            "                   'three_month_return': -0.0033147714706603937}},\n",
+            " 'MSFT': {'highest_high': 554.5383762548963,\n",
+            "          'lowest_low': 487.8979653734086,\n",
+            "          'tech': {'average_vol': 0.010233923998133151,\n",
+            "                   'ema_30': 509.89455648008453,\n",
+            "                   'sma_30': 507.38877970377604,\n",
+            "                   'three_month_return': 0.006509982083227506}},\n",
+            " 'NVDA': {'highest_high': 187.35000610351562,\n",
+            "          'lowest_low': 151.4814709885328,\n",
+            "          'tech': {'average_vol': 0.020275975273849233,\n",
+            "                   'ema_30': 176.9861706035911,\n",
+            "                   'sma_30': 176.40007476806642,\n",
+            "                   'three_month_return': 0.026010423804146532}},\n",
+            " 'ORCL': {'highest_high': 345.7200012207031,\n",
+            "          'lowest_low': 215.85133741934857,\n",
+            "          'tech': {'average_vol': 0.0882586542814818,\n",
+            "                   'ema_30': 276.72116306704385,\n",
+            "                   'sma_30': 267.6236643473307,\n",
+            "                   'three_month_return': -0.005375652421677035}}}\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 108
+        },
+        "id": "ebfFAwKAeE2L",
+        "outputId": "ec874c81-059a-412f-a19c-eddc6b5a082f"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "error",
+          "ename": "SyntaxError",
+          "evalue": "invalid syntax (ipython-input-3466124671.py, line 1)",
+          "traceback": [
+            "\u001b[0;36m  File \u001b[0;32m\"/tmp/ipython-input-3466124671.py\"\u001b[0;36m, line \u001b[0;32m1\u001b[0m\n\u001b[0;31m    git remote add origin https://github.com/lolxd23/Baruch-College.git\u001b[0m\n\u001b[0m        ^\u001b[0m\n\u001b[0;31mSyntaxError\u001b[0m\u001b[0;31m:\u001b[0m invalid syntax\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
