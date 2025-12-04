@@ -3,7 +3,7 @@
 ## Student Information
 - **Name:** Hajara Eve Muzammal
 - **Student ID:** 24758122
-- **Date:** December 3rd, 2025
+- **Date:** December 4rd, 2025
 
 ## Project Overview
 This project reads a stock CSV file, sorts the data by ticker symbol, then computes basic stats and technical indicators for each stock.
